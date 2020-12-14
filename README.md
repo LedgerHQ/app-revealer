@@ -27,5 +27,23 @@ Once both noise seed and words are set, the device will display 'Encrypted backu
 $ python revealer.py --apdu
 ```
 
+# APDU spec
+The application implements one APDU to fetch the cypher row by row 
+
+## APDU get image row command format
+Get image row APDU command is composed of the following 5 bytes:
+- CLA = 0x80 (1 byte)
+- INS = 0xCB (1 byte)
+- P1 = 0x00 (1 byte)
+- P2 = N (1 byte), with N beeing the row index 0 < N < IMG_WIDTH (=159)
+- LC = 0x00 (1 byte)
+
+## APDU get image row response format
+Failure :
+- Revealer unset, the user did not type his noise seed, or seed words yet, device will respond with REVEALER_UNSET SW ERROR (0x6ff0)
+- Requested row is out of range (>IMG_WIDTH), device will respond with ROW_OUT_OF_RANGE SW ERROR (0x6ff1)
+
+Success : device responds with N bytes + SW_OK (0x9000), each byte encodes a pixel (0 = white pixel, 1 = black pixel), N = IMG_HEIGHT = 97
+
 [revealer]: <https://revealer.cc/>
 [instructions]: <https://ledger.readthedocs.io/en/latest/userspace/getting_started.html>
