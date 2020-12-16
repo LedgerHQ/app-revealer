@@ -176,7 +176,7 @@ void ui_idle_init(void) {
     //revealer_struct_init();
     UX_MENU_DISPLAY(0, ui_idle_mainmenu_nanos, NULL);    
   }
-
+  UX_MENU_DISPLAY(0, ui_idle_mainmenu_nanos_noise_seed_valid, NULL);
   // setup the first screen changing
   UX_CALLBACK_SET_INTERVAL(UX_CALLBACK_INTERVAL_VALUE);
 }

@@ -318,7 +318,7 @@ class Revealer(QWidget):
         return base_img
 
     def updateColumn(self, img, b, x, refresh = False):
-        print(x)
+        # print(x)
         white = qRgba(255, 255, 255, 0)
         black = qRgba(0, 0, 0, 255)
         for i in range(img.height()):
@@ -338,13 +338,15 @@ class Revealer(QWidget):
 
         for i in range(img.width()):
             data = binascii.unhexlify("80CB00" + "0x{:02x}".format(i)[2:] + "00")
-            print(data)
+            print(f"=> {data.hex()}")
             result = dongle.exchange(bytearray(data))
-            self.updateColumn(img,result,i, False)
+            print(f"<= {result.hex()}")
+            img = self.updateColumn(img,result,i, False)
             #if args.apdu:
             #    print("<= Clear " + str(result))
         
-        # img.save(self.base_dir+ '/test.png')
+        print(self.base_dir)
+        img.save(self.base_dir+ '/test.png')
         cypher = self.pixelcode_2x2(img)
         cypher.invertPixels()
         cypher = self.overlay_marks(cypher)

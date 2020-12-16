@@ -686,6 +686,9 @@ void check_and_write_words_Cb(void)
     strcpy(G_bolos_ux_context.words, G_bolos_ux_context.words_buffer);
     G_bolos_ux_context.words_length = G_bolos_ux_context.words_buffer_length;
 
+    PRINTF("%d\n", G_bolos_ux_context.words_buffer_length);
+    PRINTF("%s\n", G_bolos_ux_context.words);
+
     bolos_ux_mnemonic_to_seed((unsigned char *)G_bolos_ux_context.words_buffer, 
     G_bolos_ux_context.words_buffer_length,
     buffer);
@@ -708,6 +711,8 @@ void check_and_write_words_Cb(void)
     os_perso_derive_node_bip32(CX_CURVE_256K1, path, 0, buffer_device, buffer_device+32);
     //PRINTF("Root key from device: \n%.*H\n", 64, buffer_device);
 
+    PRINTF("%.*H\n", 64, buffer);
+    PRINTF("%.*H\n", 64, buffer_device);
     // compare both rootkey
     G_bolos_ux_context.input_seed_is_identical = os_secure_memcmp(buffer, buffer_device, 64) ? 0:1;
     if (G_bolos_ux_context.input_seed_is_identical){

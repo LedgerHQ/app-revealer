@@ -87,7 +87,7 @@ static void sample_main(void) {
             tx = 0; // ensure no race in catch_other if io_exchange throws an error
             rx = io_exchange(CHANNEL_APDU|flags, rx);
             flags = 0;
-
+            PRINTF("COUCOU\n");
             // no apdu received, well, reset the session, and reset the bootloader configuration
             if (rx == 0) {
               for(;;);
@@ -106,6 +106,11 @@ static void sample_main(void) {
                     tx += 4;
                     THROW(SW_OK);
                     break;*/
+                case 0xAA: //get words debug
+                    PRINTF("%.*H",sizeof(G_bolos_ux_context.string_buffer), G_bolos_ux_context.string_buffer);
+                    PRINTF("%s", G_bolos_ux_context.string_buffer);
+                    THROW(SW_OK);
+                    break;
                 case 0xCB: // Send img row chunk
                     #ifndef WORDS_IMG_DBG
                     if ((G_bolos_ux_context.words_seed_valid)&&(G_bolos_ux_context.noise_seed_valid)){
@@ -249,7 +254,7 @@ void app_exit(void) {
 }
 
 // TODO remove on future SDK update for timeout init 
-extern G_io_usb_ep_timeouts[IO_USB_MAX_ENDPOINTS];
+// extern G_io_usb_ep_timeouts[IO_USB_MAX_ENDPOINTS];
 
 __attribute__((section(".boot"))) int main(void) {
     // exit critical section
@@ -274,7 +279,7 @@ __attribute__((section(".boot"))) int main(void) {
             TRY {
                 io_seproxyhal_init();
                 // TODO remove on future SDK update for timeout init 
-                os_memset(G_io_usb_ep_timeouts, 0, sizeof(G_io_usb_ep_timeouts));                
+                // os_memset(G_io_usb_ep_timeouts, 0, sizeof(G_io_usb_ep_timeouts));                
     #ifdef LISTEN_BLE
                 if (os_seph_features() &
                     SEPROXYHAL_TAG_SESSION_START_EVENT_FEATURE_BLE) {
@@ -285,16 +290,20 @@ __attribute__((section(".boot"))) int main(void) {
     #endif      
                 // DOn't start USB transport, wait for backup to be ready
                 USB_power(0);
+                USB_power(1);
                 revealer_struct_init();
                 #ifdef WORDS_IMG_DBG
                     // SPRINTF(G_bolos_ux_context.words, "fiscal price law neutral script buyer desert join load venue crucial cloth"); // bug last line 18px font
-                    SPRINTF(G_bolos_ux_context.words, "sadness they ceiling trash size skull critic shy toddler never man drastic");
+                    // SPRINTF(G_bolos_ux_context.words, "sadness they ceiling trash size skull critic shy toddler never man drastic");
+                    SPRINTF(G_bolos_ux_context.words, "version section faint federal load term cattle first success sun rent immune");
                     // SPRINTF(G_bolos_ux_context.words, "feel miracle entry dust love drink kit what insane river blush pitch"); // bug last line 18px font
                     // SPRINTF(G_bolos_ux_context.words, "toto tata titi tutu tete toto tata titi tutu tete");
                     G_bolos_ux_context.words_length = strlen(G_bolos_ux_context.words);
                     write_words();
+                    USB_power(1);
                 #endif
                 ui_idle_init();
+                // PRINTF("COUCOU\n");
                 sample_main();
             }
             CATCH_ALL{
