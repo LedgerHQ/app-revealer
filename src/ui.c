@@ -1,25 +1,19 @@
-#include "ux_nanos.h"
-#include "error_codes.h"
-#include "revealer.h"
-
-#define UX_CALLBACK_INTERVAL_VALUE      200
+#include "ui.h"
 
 enum UI_STATE { UI_IDLE, UI_TEXT, UI_APPROVAL };
 
 enum UI_STATE uiState;
 
-extern const ux_menu_entry_t menu_about_nanos[];
-extern const ux_menu_entry_t ui_idle_mainmenu_nanos[];
-extern const ux_menu_entry_t ui_type_seed_words_menu_nanos[];
-extern const bagl_element_t ui_confirm_seed_display_nanos[];
-
+#if defined(TARGET_NANOS)
+#define UX_CALLBACK_INTERVAL_VALUE 200
+void ui_type_noise_seed_nanos_init(void);
 const ux_menu_entry_t menu_about_nanos[] = {
     {NULL, NULL, 0, NULL, "Version", APPVERSION, 0, 0},
     {NULL, ui_idle_init, 1, &C_icon_back, "Back", NULL, 61, 40},
     UX_MENU_END}; 
 
 const ux_menu_entry_t ui_idle_mainmenu_nanos[] = {
-  {NULL, ui_type_noise_seed_nanos_init, 0, &C_badge_revealer, "Type your", "revealer code", 32, 10},
+  {NULL, ui_type_noise_seed_nanos_init, 0, &C_badge, "Type your", "revealer code", 32, 10},
   //{NULL, screen_onboarding_3_restore_init, 0, /*&icon_hack*/NULL, "Type your", "seed words", 32, 10},
   {menu_about_nanos, NULL, 0, NULL, "About", NULL, 0, 0},
   {NULL, os_sched_exit, 0, &C_icon_dashboard, "Quit app", NULL, 50, 29},
@@ -27,21 +21,21 @@ const ux_menu_entry_t ui_idle_mainmenu_nanos[] = {
 };
 
 const ux_menu_entry_t ui_idle_mainmenu_nanos_noise_seed_valid[] = {
-  {NULL, screen_onboarding_3_restore_init, 0, &C_badge_revealer, "Type your", "seed words", 32, 10},
+  {NULL, screen_onboarding_3_restore_init, 0, &C_badge, "Type your", "seed words", 32, 10},
   {menu_about_nanos, NULL, 0, NULL, "About", NULL, 0, 0},
   {NULL, os_sched_exit, 0, &C_icon_dashboard, "Quit app", NULL, 50, 29},
   UX_MENU_END
 };
 
 const ux_menu_entry_t ui_idle_mainmenu_nanos_words_seed_valid[] = {
-  {NULL, ui_type_noise_seed_nanos_init, 0, &C_badge_revealer, "Type your", "revealer code", 32, 10},
+  {NULL, ui_type_noise_seed_nanos_init, 0, &C_badge, "Type your", "revealer code", 32, 10},
   {menu_about_nanos, NULL, 0, NULL, "About", NULL, 0, 0},
   {NULL, os_sched_exit, 0, &C_icon_dashboard, "Quit app", NULL, 50, 29},
   UX_MENU_END
 };
 
 const ux_menu_entry_t ui_idle_mainmenu_nanos_all_valid[] = {
-  {NULL, NULL, 0, &C_badge_revealer, "Encrypted", "backup ready", 32, 10},
+  {NULL, NULL, 0, &C_badge, "Encrypted", "backup ready", 32, 10},
   {menu_about_nanos, NULL, 0, NULL, "About", NULL, 0, 0},
   {NULL, os_sched_exit, 0, &C_icon_dashboard, "Quit app", NULL, 50, 29},
   UX_MENU_END
@@ -53,246 +47,6 @@ const ux_menu_entry_t ui_type_seed_words_menu_nanos[] = {
   {ui_idle_mainmenu_nanos, NULL, 0, &C_icon_dashboard, "Abort", NULL, 50, 29},
   UX_MENU_END
 }; 
-
-/*const bagl_element_t ui_confirm_seed_display_nanos[] = {
-    // type                               userid    x    y   w    h  str rad
-    // fill      fg        bg      fid iid  txt   touchparams...       ]
-    {{BAGL_RECTANGLE, 0x00, 0, 0, 128, 32, 0, 0, BAGL_FILL, 0x000000, 0xFFFFFF,
-      0, 0},
-     NULL,
-     0,
-     0,
-     0,
-     NULL,
-     NULL,
-     NULL},
-
-    {{BAGL_LABELINE, 0x01, 0, 12, 128, 32, 0, 0, 0, 0xFFFFFF, 0x000000,
-      BAGL_FONT_OPEN_SANS_EXTRABOLD_11px | BAGL_FONT_ALIGNMENT_CENTER , 0},
-     "Confirm seed",
-     0,
-     0,
-     0,
-     NULL,
-     NULL,
-     NULL},
-    {{BAGL_LABELINE, 0x01, 1, 26, 128, 32, 0, 0, 0, 0xFFFFFF, 0x000000,
-      BAGL_FONT_OPEN_SANS_EXTRABOLD_11px | BAGL_FONT_ALIGNMENT_CENTER , 0},
-     "display",
-     0,
-     0,
-     0,
-     NULL,
-     NULL,
-     NULL},
-
-    {{BAGL_ICON, 0x00, 3, 12, 7, 7, 0, 0, 0, 0xFFFFFF, 0x000000, 0,
-      BAGL_GLYPH_ICON_CROSS},
-     NULL,
-     0,
-     0,
-     0,
-     NULL,
-     NULL,
-     NULL},
-
-    {{BAGL_ICON, 0x00, 117, 13, 8, 6, 0, 0, 0, 0xFFFFFF, 0x000000, 0,
-      BAGL_GLYPH_ICON_CHECK},
-     NULL,
-     0,
-     0,
-     0,
-     NULL,
-     NULL,
-     NULL},
-
-};
-
-void seed_display_cancel(void){
-  G_io_apdu_buffer[0] = DENIED_BY_USER >> 8;
-  G_io_apdu_buffer[1] = DENIED_BY_USER & 0xff;
-  io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, 2);
-  ui_idle_init();
-}
-
-void seed_display_confirm(void){
-  int replysize = 250;
-  int offset = 0;
-  switch (G_bolos_ux_context.onboarding_kind){
-    case 24:
-      offset = 128;
-      break;
-    case 18:
-      offset = 64;
-      break;
-    case 12:
-      offset = 64;
-      break;
-    default:
-      offset = 0;
-      break;
-  }
-  memcpy(G_io_apdu_buffer, &G_bolos_ux_context.string_buffer[offset], replysize);
-  //THROW(0x6FFA);
-  G_io_apdu_buffer[replysize] = SW_OK >> 8;
-  G_io_apdu_buffer[replysize+1] = SW_OK & 0xff;
-  io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, replysize+2);
-  ui_idle_init();
-}
-
-unsigned int ui_confirm_seed_display_nanos_button(unsigned int button_mask,unsigned int button_mask_counter) {
-    switch (button_mask) {
-    case BUTTON_EVT_RELEASED | BUTTON_RIGHT:       
-        //confirm
-        seed_display_confirm();
-        break;
-
-    case BUTTON_EVT_RELEASED | BUTTON_LEFT:
-        // deny
-        seed_display_cancel();
-        break;
-
-    default:
-        break;
-    }
-}*/
-
-void ui_idle_init(void) {
-  uiState = UI_IDLE;
-  // PRINTF("%d", G_io_apdu_media);
-  if ((G_bolos_ux_context.noise_seed_valid == 1)&&(G_bolos_ux_context.words_seed_valid == 1)){
-    // //Activate io
-    USB_power(0);
-    USB_power(1);
-    UX_MENU_DISPLAY(0, ui_idle_mainmenu_nanos_all_valid, NULL);
-  }
-  else if (G_bolos_ux_context.noise_seed_valid == 1){
-    UX_MENU_DISPLAY(0, ui_idle_mainmenu_nanos_noise_seed_valid, NULL); 
-  }
-  else if ((G_bolos_ux_context.noise_seed_valid == 0)&&(G_bolos_ux_context.words_seed_valid == 1)){
-    UX_MENU_DISPLAY(0, ui_idle_mainmenu_nanos_words_seed_valid, NULL);
-  }
-  else{
-    //revealer_struct_init();
-    UX_MENU_DISPLAY(0, ui_idle_mainmenu_nanos, NULL);    
-  }
-  UX_MENU_DISPLAY(0, ui_idle_mainmenu_nanos_noise_seed_valid, NULL);
-  // setup the first screen changing
-  UX_CALLBACK_SET_INTERVAL(UX_CALLBACK_INTERVAL_VALUE);
-}
-
-void ui_type_seed_words_init(void){
-  uiState = UI_TEXT;
-
-  UX_MENU_DISPLAY(0, ui_type_seed_words_menu_nanos, NULL);
-  // setup the first screen changing
-  UX_CALLBACK_SET_INTERVAL(UX_CALLBACK_INTERVAL_VALUE);
-}
-
-/*void ui_confirm_seed_display_init(void){
-  UX_DISPLAY(ui_confirm_seed_display_nanos,NULL);
-}*/
-
-/*const bagl_element_t ui_revealer_in_progress[] = {
-    // erase
-    {{BAGL_RECTANGLE, 0x00, 0, 0, 128, 32, 0, 0, BAGL_FILL, 0x000000, 0xFFFFFF,
-      0, 0},
-     NULL,
-     0,
-     0,
-     0,
-     NULL,
-     NULL,
-     NULL},
-    {{BAGL_LABELINE, 0x00, 10, 12, 128, 32, 0, 0, 0, 0xFFFFFF, 0x000000,
-      BAGL_FONT_OPEN_SANS_EXTRABOLD_11px | BAGL_FONT_ALIGNMENT_CENTER, 0},
-     "Revealer in progress",
-     0,
-     0,
-     0,
-     NULL,
-     NULL,
-     NULL},
-    {{BAGL_LABELINE, 0x03, 10, 26, 128, 32, 0, 0, 0, 0xFFFFFF, 0x000000,
-      BAGL_FONT_OPEN_SANS_EXTRABOLD_11px | BAGL_FONT_ALIGNMENT_CENTER, 0},
-     "0/159",
-     0,
-     0,
-     0,
-     NULL,
-     NULL,
-     NULL},
-};
-
-unsigned int ui_revealer_in_progress_prepro(const  bagl_element_t* element){
-  return 1;
-}
-
-unsigned int ui_revealer_in_progress_button(unsigned int button_mask,unsigned int button_mask_counter) {
-  switch (button_mask) {
-  case BUTTON_EVT_RELEASED|BUTTON_LEFT|BUTTON_RIGHT:
-      //os_sched_exit(0);
-      break;
-  default:
-      break;
-  }
-  ui_idle_init();
-}
-
-const bagl_element_t ui_revealer_final[] = {
-    // erase
-    {{BAGL_RECTANGLE, 0x00, 0, 0, 128, 32, 0, 0, BAGL_FILL, 0x000000, 0xFFFFFF,
-      0, 0},
-     NULL,
-     0,
-     0,
-     0,
-     NULL,
-     NULL,
-     NULL},
-
-    {{BAGL_ICON, 0x02, 6, 9, 14, 14, 0, 0, 0, 0xFFFFFF, 0x000000, 0,
-      BAGL_GLYPH_ICON_CHECK_BADGE},
-     NULL,
-     0,
-     0,
-     0,
-     NULL,
-     NULL,
-     NULL},
-    {{BAGL_LABELINE, 0x00, 10, 12, 128, 32, 0, 0, 0, 0xFFFFFF, 0x000000,
-      BAGL_FONT_OPEN_SANS_EXTRABOLD_11px | BAGL_FONT_ALIGNMENT_CENTER, 0},
-     "Revealer successfully",
-     0,
-     0,
-     0,
-     NULL,
-     NULL,
-     NULL},
-    {{BAGL_LABELINE, 0x03, 10, 26, 128, 32, 0, 0, 0, 0xFFFFFF, 0x000000,
-      BAGL_FONT_OPEN_SANS_EXTRABOLD_11px | BAGL_FONT_ALIGNMENT_CENTER, 0},
-     "generated",
-     0,
-     0,
-     0,
-     NULL,
-     NULL,
-     NULL},
-};
-
-unsigned int ui_revealer_final_prepro(const  bagl_element_t* element){
-  return 1;
-}
-
-unsigned int ui_revealer_final_button(unsigned int button_mask,unsigned int button_mask_counter) {
-  switch (button_mask) {
-  case BUTTON_EVT_RELEASED|BUTTON_LEFT|BUTTON_RIGHT:
-      os_sched_exit(0);
-      break;
-  default:
-      break;
-  }
-}*/
 
 #define PIN_DIGIT_LEN 17
 static const char C_pin_digit[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C', 'D', 'E', 'F', '<'};
@@ -362,6 +116,72 @@ unsigned int ui_noise_seed_final_compare_nanos_prepro(const  bagl_element_t* ele
     }
   }
   return 1;
+}
+
+const bagl_element_t * 
+screen_onboarding_4_processing_before_element_display_callback(const bagl_element_t *element) 
+{
+    // copy element to be displayed
+    os_memmove(&G_bolos_ux_context.tmp_element, PIC(element),
+               sizeof(G_bolos_ux_context.tmp_element));
+
+    if(element->component.userid == 0x01)
+    {
+        G_bolos_ux_context.tmp_element.component.width =
+            C_badge_loading_v2.width;
+        
+        G_bolos_ux_context.tmp_element.component.y = 9;
+        G_bolos_ux_context.tmp_element.component.height =
+            C_badge_loading_v2.height;
+        G_bolos_ux_context.tmp_element.component.type = BAGL_ICON;
+        G_bolos_ux_context.tmp_element.component.icon_id = 0;
+        G_bolos_ux_context.tmp_element.text =
+            (const char *)&C_badge_loading_v2;
+    }
+    // update element display
+    return &G_bolos_ux_context.tmp_element;
+}
+
+unsigned int screen_onboarding_4_processing_button(
+    unsigned int button_mask, unsigned int button_mask_counter){
+        // No interaction here
+    }
+
+const bagl_element_t screen_onboarding_4_processing[] = {
+    // erase
+    {{BAGL_RECTANGLE, 0x00, 0, 0, 128, 32, 0, 0, BAGL_FILL, 0x000000, 0xFFFFFF,
+      0, 0},
+     NULL,
+     0,
+     0,
+     0,
+     NULL,
+     NULL,
+     NULL},
+
+    {{BAGL_ICON, 0x01, 11, 9, 14, 14, 0, 0, 0, 0xFFFFFF, 0x000000, 0,
+      BAGL_GLYPH_ICON_LOADING_BADGE},
+     NULL,
+     0,
+     0,
+     0,
+     NULL,
+     NULL,
+     NULL},
+
+    {{BAGL_LABELINE, 0x00, 10, 20, 128, 32, 0, 0, 0, 0xFFFFFF, 0x000000,
+      BAGL_FONT_OPEN_SANS_EXTRABOLD_11px | BAGL_FONT_ALIGNMENT_CENTER | BAGL_FONT_ALIGNMENT_MIDDLE, 0},
+     "Processing...",
+     0,
+     0,
+     0,
+     NULL,
+     NULL,
+     NULL}
+};
+
+void display_processing_screen(void){
+    UX_DISPLAY(screen_onboarding_4_processing, screen_onboarding_4_processing_before_element_display_callback);
 }
 
 unsigned int ui_noise_seed_final_compare_nanos_button(unsigned int button_mask,unsigned int button_mask_counter) {
@@ -456,7 +276,7 @@ unsigned int ui_type_noise_seed_nanos_prepro(const  bagl_element_t* element){
     printIdx = strlen(intermediaryBuffer)>MAX_CHAR_PER_LINE ? strlen(intermediaryBuffer)-MAX_CHAR_PER_LINE:0;
     strcpy(G_bolos_ux_context.string_buffer, &intermediaryBuffer[printIdx]);
   }
-  // UX_CALLBACK_SET_INTERVAL(200);
+  UX_CALLBACK_SET_INTERVAL(UX_CALLBACK_INTERVAL_VALUE);
   return 1;
 }
 
@@ -566,6 +386,228 @@ unsigned int ui_type_noise_seed_nanos_button(unsigned int button_mask,unsigned i
   return 0;
 }
 
+void ui_type_noise_seed_nanos_init(void){
+  revealer_struct_init();
+  UX_DISPLAY(ui_type_noise_seed_nanos,ui_type_noise_seed_nanos_prepro);
+  UX_CALLBACK_SET_INTERVAL(UX_CALLBACK_INTERVAL_VALUE);
+}
+
+void initPrngAndWriteNoise_Cb(void){
+  G_bolos_ux_context.processing = 0;
+  io_seproxyhal_general_status();
+  drbg_hmac_init();
+  drbg_reseed(G_bolos_ux_context.noise_seed_bytearray, 1);
+  drbg_write_noise();
+  ui_idle_init();
+}
+
+UX_STEP_VALID(
+    ux_idle_flow_1_step, 
+    pbb,
+    // screen_onboarding_3_restore_init();,
+    ui_type_noise_seed_nanos_init(),
+    {
+      &C_badge,
+      "Type your",
+      "revelaer code",
+    });
+UX_STEP_NOCB(
+    ux_idle_flow_3_step, 
+    bn, 
+    {
+      "Version",
+      APPVERSION,
+    });
+UX_STEP_VALID(
+    ux_idle_flow_4_step,
+    pb,
+    os_sched_exit(-1),
+    {
+      &C_icon_dashboard_x,
+      "Quit",
+    });
+UX_FLOW(ux_idle_flow,
+  &ux_idle_flow_1_step,
+  &ux_idle_flow_3_step,
+  &ux_idle_flow_4_step
+);
+
+UX_STEP_VALID(
+    ux_noise_seed_valid_flow_1_step, 
+    pbb,
+    screen_onboarding_3_restore_init();,
+    // ui_type_noise_seed_nanos_init(),
+    {
+      &C_badge,
+      "Type your",
+      "seed words",
+    });
+UX_STEP_NOCB(
+    ux_noise_seed_valid_flow_3_step, 
+    bn, 
+    {
+      "Version",
+      APPVERSION,
+    });
+UX_STEP_VALID(
+    ux_noise_seed_valid_flow_4_step,
+    pb,
+    os_sched_exit(-1),
+    {
+      &C_icon_dashboard_x,
+      "Quit",
+    });
+UX_FLOW(ux_noise_seed_valid_flow,
+  &ux_noise_seed_valid_flow_1_step,
+  &ux_noise_seed_valid_flow_3_step,
+  &ux_noise_seed_valid_flow_4_step
+);
+
+UX_STEP_VALID(
+    ux_all_valid_flow_1_step, 
+    pbb,
+    NULL,
+    {
+      &C_badge,
+      "Revealer",
+      "Ready",
+    });
+UX_STEP_NOCB(
+    ux_all_valid_flow_3_step, 
+    bn, 
+    {
+      "Version",
+      APPVERSION,
+    });
+UX_STEP_VALID(
+    ux_all_valid_flow_4_step,
+    pb,
+    os_sched_exit(-1),
+    {
+      &C_icon_dashboard_x,
+      "Quit",
+    });
+UX_FLOW(ux_all_valid_flow,
+  &ux_all_valid_flow_1_step,
+  &ux_all_valid_flow_3_step,
+  &ux_all_valid_flow_4_step
+);
+
+#elif defined(TARGET_NANOX)
+
+//////////////////////////////////////////////////////////////////////
+
+const char* const number_of_words_getter_values[] = {
+  "12 words",
+  "18 words",
+  "24 words",
+  "Back",
+};
+
+const char* number_of_words_getter(unsigned int idx) {
+  if (idx < ARRAYLEN(number_of_words_getter_values)) {
+    return number_of_words_getter_values[idx];
+  }
+  return NULL;
+}
+
+void number_of_words_selector(unsigned int idx) {
+  switch(idx) {
+    case 0:
+      G_bolos_ux_context.onboarding_kind = 12;
+      screen_onboarding_4_restore_word_init(1 /*entering the first word*/);
+      break;
+    case 1:
+      G_bolos_ux_context.onboarding_kind = 18;
+      screen_onboarding_4_restore_word_init(1 /*entering the first word*/);
+      break;
+    case 2:
+      G_bolos_ux_context.onboarding_kind = 24;
+      screen_onboarding_4_restore_word_init(1 /*entering the first word*/);
+      break;
+    default:
+      ui_idle_init();
+  }
+}
+
+//////////////////////////////////////////////////////////////////////
+
+UX_STEP_VALID(
+    ux_instruction_step, 
+    nnn,
+    ux_menulist_init(0, number_of_words_getter, number_of_words_selector),
+    {
+      "Select the number",
+      "of words written on",
+      "your Recovery Sheet",
+    });
+
+UX_FLOW(ux_instruction_flow,
+  &ux_instruction_step
+);
+
+//////////////////////////////////////////////////////////////////////
+
+UX_STEP_VALID(
+    ux_idle_flow_1_step, 
+    pbb,
+    ux_flow_init(0, ux_instruction_flow, NULL),
+    {
+      &C_badge,
+      "Check your",
+      "recovery phrase",
+    });
+UX_STEP_NOCB(
+    ux_idle_flow_3_step, 
+    bn, 
+    {
+      "Version",
+      APPVERSION,
+    });
+UX_STEP_VALID(
+    ux_idle_flow_4_step,
+    pb,
+    os_sched_exit(-1),
+    {
+      &C_icon_dashboard_x,
+      "Quit",
+    });
+UX_FLOW(ux_idle_flow,
+  &ux_idle_flow_1_step,
+  &ux_idle_flow_3_step,
+  &ux_idle_flow_4_step
+);
+
+#endif
+
+
+void ui_idle_init(void) {
+  uiState = UI_IDLE;
+
+  // reserve a display stack slot if none yet
+  if(G_ux.stack_count == 0) {
+      ux_stack_push();
+  }
+  if ((G_bolos_ux_context.noise_seed_valid == 1)&&(G_bolos_ux_context.words_seed_valid == 1)){
+    // UX_MENU_DISPLAY(0, ui_idle_mainmenu_nanos_all_valid, NULL);
+    PRINTF("ALL VALID\n");
+    ux_flow_init(0, ux_all_valid_flow, NULL);
+  }
+  else if (G_bolos_ux_context.noise_seed_valid == 1){
+    // UX_MENU_DISPLAY(0, ui_idle_mainmenu_nanos_noise_seed_valid, NULL);
+    ux_flow_init(0, ux_noise_seed_valid_flow, NULL);
+  }
+  else if ((G_bolos_ux_context.noise_seed_valid == 0)&&(G_bolos_ux_context.words_seed_valid == 1)){
+    // UX_MENU_DISPLAY(0, ui_idle_mainmenu_nanos_words_seed_valid, NULL);
+  }
+  else{
+    // UX_MENU_DISPLAY(0, ui_idle_mainmenu_nanos, NULL);
+    ux_flow_init(0, ux_idle_flow, NULL);
+  }
+  // ux_flow_init(0, ux_idle_flow, NULL);
+  // ux_flow_init(0, ux_noise_seed_valid_flow, NULL);
+}
+
 void revealer_struct_init(void){
   os_memset(G_bolos_ux_context.noise_seed, NULL, 36);
   os_memset(G_bolos_ux_context.string_buffer, NULL, MAX(64, sizeof(bagl_icon_details_t) +
@@ -580,19 +622,4 @@ void revealer_struct_init(void){
     G_bolos_ux_context.noise_seed_valid = 1;
   #endif
   G_bolos_ux_context.words_seed_valid = 0;
-}
-
-void ui_type_noise_seed_nanos_init(void){
-  revealer_struct_init();
-  UX_DISPLAY(ui_type_noise_seed_nanos,ui_type_noise_seed_nanos_prepro);
-  UX_CALLBACK_SET_INTERVAL(UX_CALLBACK_INTERVAL_VALUE);
-}
-
-void initPrngAndWriteNoise_Cb(void){
-  G_bolos_ux_context.processing = 0;
-  io_seproxyhal_general_status();
-  drbg_hmac_init();
-  drbg_reseed(G_bolos_ux_context.noise_seed_bytearray, 1);
-  drbg_write_noise();
-  ui_idle_init();
 }

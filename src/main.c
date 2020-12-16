@@ -17,13 +17,10 @@
 
 #include "os.h"
 #include "cx.h"
-#include "bolos_ux_common.h"
-#include "revealer.h"
-#include "error_codes.h"
-#include "ux_nanos.h"
-#include "bolos_ux.h"
 
 #include "os_io_seproxyhal.h"
+#include "ui.h"
+#include "error_codes.h"
 
 unsigned char G_io_seproxyhal_spi_buffer[IO_SEPROXYHAL_BUFFER_SIZE_B];
 
@@ -32,13 +29,24 @@ static unsigned int text_y;           // current location of the displayed text
 
 // UI currently displayed
 extern enum UI_STATE { UI_IDLE, UI_TEXT, UI_APPROVAL };
+
 extern enum UI_STATE uiState;
 
-ux_state_t ux;
+#ifdef TARGET_NANOX
+#include "ux.h"
+#include "bolos_ux_nanox.h"
+#else
+#include "bolos_ux_nanos.h"
+#endif
 
+ux_state_t G_ux;
+bolos_ux_params_t G_ux_params;
+
+// bolos_ux_context_t G_bolos_ux_context;
+
+static unsigned char display_text_part(void);
 
 #define MAX_CHARS_PER_LINE 49
-
 
 static char lineBuffer[50];
 
@@ -68,12 +76,9 @@ unsigned short io_exchange_al(unsigned char channel, unsigned short tx_len) {
     return 0;
 }
 
-extern uint8_t hashDBG[32];
 uint8_t row_nb;
 static void sample_main(void) {
 
-    // next timer callback in 500 ms
-    //UX_CALLBACK_SET_INTERVAL(500);
     volatile unsigned int rx = 0;
     volatile unsigned int tx = 0;
     volatile uint8_t flags = 0;
@@ -87,7 +92,6 @@ static void sample_main(void) {
             tx = 0; // ensure no race in catch_other if io_exchange throws an error
             rx = io_exchange(CHANNEL_APDU|flags, rx);
             flags = 0;
-            PRINTF("COUCOU\n");
             // no apdu received, well, reset the session, and reset the bootloader configuration
             if (rx == 0) {
               for(;;);
@@ -168,10 +172,33 @@ return_to_dashboard:
     return;
 }
 
+
+// Pick the text elements to display
+static unsigned char display_text_part() {
+    unsigned int i;
+    WIDE char *text = (char*) G_io_apdu_buffer + 5;
+    if (text[current_text_pos] == '\0') {
+        return 0;
+    }
+    i = 0;
+    while ((text[current_text_pos] != 0) && (text[current_text_pos] != '\n') &&
+           (i < MAX_CHARS_PER_LINE)) {
+        lineBuffer[i++] = text[current_text_pos];
+        current_text_pos++;
+    }
+    if (text[current_text_pos] == '\n') {
+        current_text_pos++;
+    }
+    lineBuffer[i] = '\0';
+
+    return 1;
+}
+
+
 unsigned char io_event(unsigned char channel) {
     // nothing done with the event, throw an error on the transport layer if
     // needed
-    // PRINTF("%d", G_io_apdu_media);
+
     // can't have more than one tag in the reply, not supported yet.
     switch (G_io_seproxyhal_spi_buffer[0]) {
     case SEPROXYHAL_TAG_FINGER_EVENT:
@@ -182,18 +209,8 @@ unsigned char io_event(unsigned char channel) {
         UX_BUTTON_PUSH_EVENT(G_io_seproxyhal_spi_buffer);
         break;
 
-    case SEPROXYHAL_TAG_STATUS_EVENT:
-        if (G_io_apdu_media == IO_APDU_MEDIA_USB_HID &&
-            !(U4BE(G_io_seproxyhal_spi_buffer, 3) &
-              SEPROXYHAL_TAG_STATUS_EVENT_FLAG_USB_POWERED)) {
-            THROW(EXCEPTION_IO_RESET);
-        }
-    // unknown events are acknowledged
-    default:
-        UX_DEFAULT_EVENT();
-        break;
-
     case SEPROXYHAL_TAG_DISPLAY_PROCESSED_EVENT:
+#if defined(TARGET_NANOS)
         if ((uiState == UI_TEXT) &&
             (os_seph_features() & SEPROXYHAL_TAG_SESSION_START_EVENT_FEATURE_SCREEN_BIG)) {
                 UX_REDISPLAY();
@@ -201,7 +218,9 @@ unsigned char io_event(unsigned char channel) {
         else {
             if(G_bolos_ux_context.processing == 1)
             {
-                UX_DISPLAYED_EVENT(check_and_write_words_Cb(););
+                // UX_DISPLAYED_EVENT(check_and_write_words_Cb(););
+                // UX_DISPLAYED_EVENT(write_words(););
+                UX_DISPLAYED_EVENT(compare_recovery_phrase(););
             }
             else if (G_bolos_ux_context.processing == 2){
                 UX_DISPLAYED_EVENT(initPrngAndWriteNoise_Cb(););
@@ -209,27 +228,26 @@ unsigned char io_event(unsigned char channel) {
             else
             {
                 UX_DISPLAYED_EVENT({});
+                // ui_idle_init();
             }
         }
+#elif defined(TARGET_NANOX)
+        UX_DISPLAYED_EVENT({});
+#endif
         break;
 
     case SEPROXYHAL_TAG_TICKER_EVENT:
-        #ifdef TARGET_NANOS
-            // UX_TICKER_EVENT(G_io_seproxyhal_spi_buffer, {
-            //     // defaulty retrig very soon (will be overriden during
-            //     // stepper_prepro)
-            //     UX_CALLBACK_SET_INTERVAL(200);
-            //     NULL;
-            //     // UX_REDISPLAY();
-            // });
-                UX_TICKER_EVENT(G_io_seproxyhal_spi_buffer, 
-                {
-                   // only allow display when not locked of overlayed by an OS UX.
-                  if (UX_ALLOWED) {
-                    UX_REDISPLAY(); 
-                  }
-                });
-        #endif 
+            UX_TICKER_EVENT(G_io_seproxyhal_spi_buffer, {
+                // defaulty retrig very soon (will be overriden during
+                // stepper_prepro)
+                UX_CALLBACK_SET_INTERVAL(500);
+                UX_REDISPLAY();
+            });
+        break;
+
+    // unknown events are acknowledged
+    default:
+        UX_DEFAULT_EVENT();
         break;
     }
 
@@ -242,20 +260,6 @@ unsigned char io_event(unsigned char channel) {
     return 1;
 }
 
-void app_exit(void) {
-    BEGIN_TRY_L(exit) {
-        TRY_L(exit) {
-            os_sched_exit(-1);
-        }
-        FINALLY_L(exit) {
-        }
-    }
-    END_TRY_L(exit);
-}
-
-// TODO remove on future SDK update for timeout init 
-// extern G_io_usb_ep_timeouts[IO_USB_MAX_ENDPOINTS];
-
 __attribute__((section(".boot"))) int main(void) {
     // exit critical section
     __asm volatile("cpsie i");
@@ -264,56 +268,34 @@ __attribute__((section(".boot"))) int main(void) {
     text_y = 60;
     uiState = UI_IDLE;
 
-    uint8_t font_h = 9;
-    uint8_t font_w = 9;
-    uint8_t i, j, x, y;
-    x = 0; y = 0;
-
     // ensure exception will work as planned
     os_boot();
 
+    UX_INIT();
 
-    for(;;){
-        UX_INIT();
-        BEGIN_TRY {
-            TRY {
-                io_seproxyhal_init();
-                // TODO remove on future SDK update for timeout init 
-                // os_memset(G_io_usb_ep_timeouts, 0, sizeof(G_io_usb_ep_timeouts));                
-    #ifdef LISTEN_BLE
-                if (os_seph_features() &
-                    SEPROXYHAL_TAG_SESSION_START_EVENT_FEATURE_BLE) {
-                    BLE_power(0, NULL);
-                    // restart IOs
-                    BLE_power(1, NULL);
-                }
-    #endif      
-                // DOn't start USB transport, wait for backup to be ready
-                USB_power(0);
+    BEGIN_TRY {
+        TRY {
+            io_seproxyhal_init();
+            USB_power(0);
+            USB_power(1);
+            revealer_struct_init();
+            #ifdef WORDS_IMG_DBG
+                // SPRINTF(G_bolos_ux_context.words, "fiscal price law neutral script buyer desert join load venue crucial cloth"); // bug last line 18px font
+                // SPRINTF(G_bolos_ux_context.words, "sadness they ceiling trash size skull critic shy toddler never man drastic");
+                SPRINTF(G_bolos_ux_context.words, "version section faint federal load term cattle first success sun rent immune");
+                // SPRINTF(G_bolos_ux_context.words, "feel miracle entry dust love drink kit what insane river blush pitch"); // bug last line 18px font
+                // SPRINTF(G_bolos_ux_context.words, "toto tata titi tutu tete toto tata titi tutu tete");
+                G_bolos_ux_context.words_length = strlen(G_bolos_ux_context.words);
+                write_words();
                 USB_power(1);
-                revealer_struct_init();
-                #ifdef WORDS_IMG_DBG
-                    // SPRINTF(G_bolos_ux_context.words, "fiscal price law neutral script buyer desert join load venue crucial cloth"); // bug last line 18px font
-                    // SPRINTF(G_bolos_ux_context.words, "sadness they ceiling trash size skull critic shy toddler never man drastic");
-                    SPRINTF(G_bolos_ux_context.words, "version section faint federal load term cattle first success sun rent immune");
-                    // SPRINTF(G_bolos_ux_context.words, "feel miracle entry dust love drink kit what insane river blush pitch"); // bug last line 18px font
-                    // SPRINTF(G_bolos_ux_context.words, "toto tata titi tutu tete toto tata titi tutu tete");
-                    G_bolos_ux_context.words_length = strlen(G_bolos_ux_context.words);
-                    write_words();
-                    USB_power(1);
-                #endif
-                ui_idle_init();
-                // PRINTF("COUCOU\n");
-                sample_main();
-            }
-            CATCH_ALL{
-                continue;
-            }
-            FINALLY {
-            }
+            #endif
+            ui_idle_init();
+            sample_main();
         }
-        END_TRY;
+        CATCH_OTHER(e) {
+        }
+        FINALLY {
+        }
     }
-    app_exit();
-    return 0;
+    END_TRY;
 }

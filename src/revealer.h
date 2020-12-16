@@ -1,6 +1,6 @@
 #include "os.h"
 #include "bolos_ux_common.h"
-#include "ux_nanos.h"
+#include "bolos_ux_nanos.h"
 
 // Mersene twister algo defines
 #define N  		   	624

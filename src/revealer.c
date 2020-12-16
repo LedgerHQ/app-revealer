@@ -1,5 +1,5 @@
 #include "revealer.h"
-#include "ux_nanos.h"
+#include "bolos_ux_nanos.h"
 #include "font.h"
 #include "cx.h"
 
@@ -471,6 +471,8 @@ void write_words(void){
   line = 0;
   numLine = 0;
   charRemaining = G_bolos_ux_context.words_length + 1; //include '\0'
+  PRINTF("len = %d\n", G_bolos_ux_context.words_length);
+  PRINTF("words = %s\n", G_bolos_ux_context.words);
   fontId = BAGL_FONT_FONT_SEMIBOLD_18PX;
   line_h = fontFONT_SEMIBOLD_18PX.char_height;
   strcpy(G_bolos_ux_context.string_buffer, G_bolos_ux_context.words);
@@ -512,6 +514,8 @@ void write_words(void){
       }
       line = 0;
     }
+    PRINTF("WRITE WORDS DONE\n");
+    G_bolos_ux_context.processing = 0;
   }
 
   // write_words_img:

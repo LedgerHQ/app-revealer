@@ -95,10 +95,10 @@ typedef struct bolos_ux_context {
 #define INACTIVITY_MS_AUTO_LOCK (G_bolos_ux_context.setting_auto_lock_delay_ms)
     unsigned int ms_last_activity;
 
-    /*enum {
+    enum {
         INACTIVITY_NONE,
         INACTIVITY_LOCK,
-    } inactivity_state;*/
+    } inactivity_state;
 
     bagl_element_t tmp_element;
 
@@ -145,13 +145,13 @@ typedef struct bolos_ux_context {
     // filled up during os_ux syscall when called by user or bolos.
     bolos_ux_params_t parameters;
 
-    /*unsigned int settings_index;
-    unsigned int settings_value;*/
+    unsigned int settings_index;
+    unsigned int settings_value;
 
     // unsigned int saver_step;
     // unsigned int saver_konami;
-    /*int saver_step_x;
-    int saver_step_y;*/
+    int saver_step_x;
+    int saver_step_y;
 
     // slider management
     unsigned int hslider3_before;
@@ -194,6 +194,8 @@ typedef struct bolos_ux_context {
     uint8_t words_seed_valid;
 } bolos_ux_context_t;
 
+extern bolos_ux_context_t G_bolos_ux_context;
+
 // update before, current, after index for horizontal slider with 3 positions
 // slider distinguish handling from the data, to be more generic :)
 #define BOLOS_UX_HSLIDER3_NONE (-1UL)
@@ -205,24 +207,24 @@ void bolos_ux_hslider3_previous(void);
 #define FAST_LIST_THRESHOLD_CS 8
 #define FAST_LIST_ACTION_CS 2
 
-/*unsigned int
+unsigned int
 screen_stack_is_element_array_present(const bagl_element_t *element_array);
 unsigned int screen_stack_push(void);
 unsigned int screen_stack_pop(void);
-void screen_stack_remove(unsigned int stack_slot);*/
+void screen_stack_remove(unsigned int stack_slot);
 
 // BIP39 helpers
 #include "bolos_ux_onboarding_seed_rom_variables.h"
 
-/*void bolos_ux_pbkdf2(unsigned char *password, unsigned int passwordlen,
+void bolos_ux_pbkdf2(unsigned char *password, unsigned int passwordlen,
                      unsigned char *salt, unsigned int saltlen,
                      unsigned int iterations, unsigned char *out,
-                     unsigned int outLength);*/
-//unsigned char bolos_ux_get_random_bip39_word(unsigned char *word);
+                     unsigned int outLength);
+unsigned char bolos_ux_get_random_bip39_word(unsigned char *word);
 // return 0 if mnemonic is invalid
 unsigned int bolos_ux_mnemonic_check(unsigned char *mnemonic,
                                      unsigned int mnemonicLength);
-//unsigned char bolos_ux_word_check(unsigned char *word, unsigned int wordLength);
+unsigned char bolos_ux_word_check(unsigned char *word, unsigned int wordLength);
 
 unsigned int bolos_ux_get_word_ptr(unsigned char **word,
                                    unsigned int max_length,
@@ -274,6 +276,9 @@ void bolos_ux_electrum_mnemonic_to_seed(unsigned char *mnemonic,
  * loaded BOLOS_UX application)
  */
 void bolos_ux_main(void);
+
+extern const bagl_element_t screen_onboarding_word_list_elements[9];
+
 
 #endif // HAVE_BOLOS_UX
 
